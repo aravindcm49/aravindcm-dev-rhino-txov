@@ -1,10 +1,206 @@
 ---
+import { getCollection } from "astro:content";
 import BaseLayout from "../layouts/BaseLayout.astro";
+import { site } from "../data/site";
+import { selectRecent, type RecentCandidate } from "../lib/landing";
+
+const [allFeed, allProjects] = await Promise.all([
+  getCollection("feed"),
+  getCollection("projects"),
+]);
+
+const publishedFeed = allFeed.filter((e) => !e.data.draft);
+const publishedProjects = allProjects.filter((p) => !p.data.draft);
+
+type FeedEntry = (typeof allFeed)[number];
+type ProjectEntry = (typeof allProjects)[number];
+
+type RecentFeed = RecentCandidate & { kind: "feed"; entry: FeedEntry };
+type RecentProject = RecentCandidate & { kind: "project"; entry: ProjectEntry };
+type RecentItem = RecentFeed | RecentProject;
+
+const recentCandidates: RecentItem[] = [
+  ...publishedFeed.map<RecentFeed>((entry) => ({
+    kind: "feed",
+    id: entry.id,
+    activityAt: entry.data.activityAt,
+    draft: entry.data.draft,
+    entry,
+  })),
+  ...publishedProjects.map<RecentProject>((entry) => ({
+    kind: "project",
+    id: entry.id,
+    activityAt: entry.data.activityAt,
+    draft: entry.data.draft,
+    entry,
+  })),
+];
+
+const recent = selectRecent(recentCandidates, new Date(), 6);
+
+const selectedProjects = publishedProjects
+  .filter((p) => p.data.featured)
+  .sort((a, b) => a.data.title.localeCompare(b.data.title));
+
+const selectedFeed = publishedFeed
+  .filter((f) => f.data.featured)
+  .sort(
+    (a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime()
+  );
+
+function feedHref(entry: FeedEntry): string | null {
+  return entry.data.hasPage ? `/feed/${entry.data.slug ?? entry.id}` : null;
+}
+
+function projectHref(entry: ProjectEntry): string {
+  return `/projects/${entry.data.slug ?? entry.id}`;
+}
 ---
 
 <BaseLayout>
-  <main>
-    <h1>aravindcm.dev</h1>
-    <p>Landing page — stub.</p>
-  </main>
+  <section class="max-w-[720px]">
+    <p class="font-mono text-sm text-muted">{site.location ?? ""}</p>
+    <h1 class="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">
+      {site.description}
+    </h1>
+    <p class="mt-4 text-muted">
+      Writing, curated references, and projects worth returning to.
+    </p>
+  </section>
+
+  {
+    recent.length > 0 && (
+      <section class="mt-16">
+        <h2 class="text-sm font-mono uppercase tracking-wider text-muted">Recent</h2>
+        <ul class="mt-4 divide-y divide-border border-y border-border">
+          {recent.map((item) =>
+            item.kind === "feed" ? (
+              <li class="py-4">
+                {feedHref(item.entry) ? (
+                  <a href={feedHref(item.entry)!} class="group block">
+                    <div class="flex items-baseline justify-between gap-4">
+                      <span class="font-medium text-text group-hover:text-accent transition-colors">
+                        {item.entry.data.title}
+                      </span>
+                      <span class="shrink-0 font-mono text-xs uppercase text-muted">
+                        {item.entry.data.type}
+                      </span>
+                    </div>
+                    {item.entry.data.summary && (
+                      <p class="mt-1 text-sm text-muted">{item.entry.data.summary}</p>
+                    )}
+                  </a>
+                ) : (
+                  <div>
+                    <div class="flex items-baseline justify-between gap-4">
+                      <span class="font-medium text-text">{item.entry.data.title}</span>
+                      <span class="shrink-0 font-mono text-xs uppercase text-muted">
+                        {item.entry.data.type}
+                      </span>
+                    </div>
+                    {item.entry.data.summary && (
+                      <p class="mt-1 text-sm text-muted">{item.entry.data.summary}</p>
+                    )}
+                  </div>
+                )}
+              </li>
+            ) : (
+              <li class="py-4">
+                <a href={projectHref(item.entry)} class="group block">
+                  <div class="flex items-baseline justify-between gap-4">
+                    <span class="font-medium text-text group-hover:text-accent transition-colors">
+                      {item.entry.data.title}
+                    </span>
+                    <span class="shrink-0 font-mono text-xs uppercase text-muted">
+                      project · {item.entry.data.status}
+                    </span>
+                  </div>
+                  {item.entry.data.summary && (
+                    <p class="mt-1 text-sm text-muted">{item.entry.data.summary}</p>
+                  )}
+                </a>
+              </li>
+            )
+          )}
+        </ul>
+      </section>
+    )
+  }
+
+  {
+    selectedProjects.length > 0 && (
+      <section class="mt-16">
+        <h2 class="text-sm font-mono uppercase tracking-wider text-muted">
+          Selected projects
+        </h2>
+        <ul class="mt-4 grid gap-6 sm:grid-cols-2">
+          {selectedProjects.map((entry) => (
+            <li>
+              <a
+                href={projectHref(entry)}
+                class="group block border border-border rounded-md p-5 hover:border-accent transition-colors"
+              >
+                <div class="flex items-baseline justify-between gap-4">
+                  <span class="font-medium text-text group-hover:text-accent transition-colors">
+                    {entry.data.title}
+                  </span>
+                  <span class="shrink-0 font-mono text-xs uppercase text-muted">
+                    {entry.data.status}
+                  </span>
+                </div>
+                <p class="mt-2 text-sm text-muted">{entry.data.summary}</p>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </section>
+    )
+  }
+
+  {
+    selectedFeed.length > 0 && (
+      <section class="mt-16">
+        <h2 class="text-sm font-mono uppercase tracking-wider text-muted">
+          Selected writing & references
+        </h2>
+        <ul class="mt-4 divide-y divide-border border-y border-border">
+          {selectedFeed.map((entry) => (
+            <li class="py-4">
+              {feedHref(entry) ? (
+                <a href={feedHref(entry)!} class="group block">
+                  <div class="flex items-baseline justify-between gap-4">
+                    <span class="font-medium text-text group-hover:text-accent transition-colors">
+                      {entry.data.title}
+                    </span>
+                    <span class="shrink-0 font-mono text-xs uppercase text-muted">
+                      {entry.data.type}
+                    </span>
+                  </div>
+                  {entry.data.commentary ? (
+                    <p class="mt-1 text-sm text-muted">{entry.data.commentary}</p>
+                  ) : (
+                    <p class="mt-1 text-sm text-muted">{entry.data.summary}</p>
+                  )}
+                </a>
+              ) : (
+                <div>
+                  <div class="flex items-baseline justify-between gap-4">
+                    <span class="font-medium text-text">{entry.data.title}</span>
+                    <span class="shrink-0 font-mono text-xs uppercase text-muted">
+                      {entry.data.type}
+                    </span>
+                  </div>
+                  {entry.data.commentary ? (
+                    <p class="mt-1 text-sm text-muted">{entry.data.commentary}</p>
+                  ) : (
+                    <p class="mt-1 text-sm text-muted">{entry.data.summary}</p>
+                  )}
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      </section>
+    )
+  }
 </BaseLayout>
