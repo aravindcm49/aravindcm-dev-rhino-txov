@@ -1,0 +1,96 @@
+---
+import type { CollectionEntry } from "astro:content";
+import { describeSource, resolvePeople, type PersonLike } from "../lib/feed";
+
+interface Props {
+  entry: CollectionEntry<"feed">;
+  people: PersonLike[];
+}
+
+const { entry, people: peoplePool } = Astro.props;
+const { data } = entry;
+
+const href = data.hasPage ? `/feed/${data.slug ?? entry.id}` : undefined;
+const source = describeSource(data.source);
+const people = resolvePeople(data.people, peoplePool);
+
+const Wrapper = href ? "a" : "div";
+const wrapperProps: Record<string, string> = href
+  ? {
+      href,
+      class:
+        "group block border-b border-border py-5 hover:border-accent transition-colors",
+    }
+  : {
+      class: "block border-b border-border py-5",
+    };
+---
+
+<Wrapper {...wrapperProps}>
+  <div class="flex items-baseline justify-between gap-4">
+    <h3
+      class:list={[
+        "font-medium text-text",
+        href ? "group-hover:text-accent transition-colors" : "",
+      ]}
+    >
+      {data.title}
+    </h3>
+    <span class="shrink-0 font-mono text-xs uppercase tracking-wide text-muted">
+      {data.type}
+    </span>
+  </div>
+
+  {data.summary && <p class="mt-2 text-sm text-muted">{data.summary}</p>}
+
+  {
+    data.commentary && (
+      <p class="mt-3 text-text">
+        {data.commentary}
+      </p>
+    )
+  }
+
+  {
+    source && (
+      <p class="mt-3 font-mono text-xs text-muted">
+        Source:{" "}
+        {source.href ? (
+          <a
+            href={source.href}
+            class="underline decoration-border underline-offset-2 hover:text-text hover:decoration-accent"
+            rel="noopener"
+            target="_blank"
+          >
+            {source.label}
+          </a>
+        ) : (
+          <span>{source.label}</span>
+        )}
+      </p>
+    )
+  }
+
+  {
+    (people.length > 0 || data.topics.length > 0) && (
+      <div class="mt-3 flex flex-wrap gap-2 text-xs">
+        {people.map((p) => (
+          <a
+            href={`/feed?person=${p.id}`}
+            class="rounded-full border border-border px-2 py-0.5 text-muted hover:text-text hover:border-accent transition-colors"
+          >
+            {p.name}
+          </a>
+        ))}
+        {data.topics.map((topic) => (
+          <a
+            href={`/feed?topic=${topic}`}
+            class="rounded-full bg-surface px-2 py-0.5 text-muted hover:text-text transition-colors"
+          >
+            #{topic}
+          </a>
+        ))}
+      </div>
+    )
+  }
+</Wrapper>

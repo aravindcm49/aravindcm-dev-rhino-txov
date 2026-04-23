@@ -1,10 +1,57 @@
 ---
+import { getCollection } from "astro:content";
 import BaseLayout from "../layouts/BaseLayout.astro";
+import FeedCard from "../components/FeedCard.astro";
+
+const [allFeed, allPeople] = await Promise.all([
+  getCollection("feed"),
+  getCollection("people"),
+]);
+
+const entries = allFeed
+  .filter((e) => !e.data.draft)
+  .sort((a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime());
+
+// PersonLike shape: { id, name }. The people collection's entries already
+// have `.id`; pull the name out of `.data` into the flat shape resolvePeople
+// expects.
+const peoplePool = allPeople.map((p) => ({ id: p.id, name: p.data.name }));
 ---
 
-<BaseLayout title="Feed">
-  <main>
-    <h1>Feed</h1>
-    <p>Feed page — stub.</p>
-  </main>
+<BaseLayout
+  title="Feed"
+  description="Writing, notes, links, tweets, videos, papers, and books — a mixed stream with commentary."
+>
+  <div class="grid gap-10 lg:grid-cols-[1fr_14rem]">
+    <div class="max-w-[720px]">
+      <header class="mb-6">
+        <h1 class="text-2xl font-semibold tracking-tight sm:text-3xl">Feed</h1>
+        <p class="mt-2 text-muted">
+          A mixed stream of writing, references, and things worth saving.
+        </p>
+      </header>
+
+      {
+        entries.length === 0 ? (
+          <p class="py-8 text-muted">Nothing published yet.</p>
+        ) : (
+          <ul class="border-t border-border">
+            {entries.map((entry) => (
+              <li>
+                <FeedCard entry={entry} people={peoplePool} />
+              </li>
+            ))}
+          </ul>
+        )
+      }
+    </div>
+
+    {/* Right rail reserved for the filter island added in issue #7. */}
+    <aside
+      aria-label="Filters"
+      class="hidden lg:block text-xs font-mono uppercase tracking-wider text-muted"
+    >
+      Filters
+    </aside>
+  </div>
 </BaseLayout>
