@@ -1,0 +1,45 @@
+---
+import { site } from "../data/site";
+import ThemeToggle from "./ThemeToggle.tsx";
+
+const currentPath = Astro.url.pathname.replace(/\/$/, "") || "/";
+---
+
+<nav
+  class="w-full border-b border-border bg-background"
+  aria-label="Primary"
+>
+  <div
+    class="mx-auto flex max-w-[1140px] flex-col gap-3 px-6 py-5 sm:flex-row sm:items-center sm:justify-between"
+  >
+    <a href="/" class="font-mono text-base text-text hover:text-accent transition-colors">
+      {site.name}.dev
+    </a>
+    <div class="flex items-center gap-6">
+      <ul class="flex gap-5 text-sm">
+        {
+          site.nav.map((item) => {
+            const isActive =
+              item.href === currentPath ||
+              (item.href !== "/" && currentPath.startsWith(item.href));
+            return (
+              <li>
+                <a
+                  href={item.href}
+                  class:list={[
+                    "transition-colors hover:text-text",
+                    isActive ? "text-text" : "text-muted",
+                  ]}
+                  aria-current={isActive ? "page" : undefined}
+                >
+                  {item.label}
+                </a>
+              </li>
+            );
+          })
+        }
+      </ul>
+      <ThemeToggle client:load />
+    </div>
+  </div>
+</nav>
