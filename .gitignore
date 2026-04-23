@@ -1,0 +1,19 @@
+node_modules
+dist
+.astro
+.vercel
+.env
+.env.local
+.DS_Store
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+coverage
+
+# Agent workspace artifacts (not project code)
+.agents
+.pi
+skills
+skills-lock.json
+
