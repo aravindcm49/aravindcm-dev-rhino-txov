@@ -1,9 +1,32 @@
 ---
 export const prerender = false;
 import AdminLayout from "~/layouts/AdminLayout.astro";
+import FeedItemsAdmin from "~/components/FeedItemsAdmin";
+import { getAllFeedItems } from "~/lib/db/feed-items";
+import { db } from "~/lib/db/index";
+
+const allItems = await getAllFeedItems(db);
+
+const serializedItems = allItems.map((item) => ({
+  id: item.id,
+  slug: item.slug,
+  title: item.title,
+  type: item.type,
+  summary: item.summary,
+  commentary: item.commentary,
+  content: item.content,
+  sourceKind: item.sourceKind,
+  sourceUrl: item.sourceUrl,
+  sourceMeta: (item.sourceMeta ?? {}) as Record<string, unknown>,
+  topics: item.topics ?? [],
+  people: item.people ?? [],
+  hasPage: item.hasPage,
+  draft: item.draft,
+  featured: item.featured,
+  publishedAt: item.publishedAt.toISOString(),
+}));
 ---
 
 <AdminLayout title="Feed Items" active="feed">
-  <h1 class="text-2xl font-semibold mb-4">Feed Items</h1>
-  <p class="text-neutral-500">Feed items management — coming soon.</p>
+  <FeedItemsAdmin client:load initialItems={serializedItems} />
 </AdminLayout>
