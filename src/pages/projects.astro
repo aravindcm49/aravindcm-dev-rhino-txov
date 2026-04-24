@@ -1,10 +1,58 @@
 ---
+import { getCollection } from "astro:content";
 import BaseLayout from "../layouts/BaseLayout.astro";
+import ProjectCard from "../components/ProjectCard.astro";
+import { isPublished } from "../lib/projects";
+
+const allProjects = await getCollection("projects");
+const published = allProjects.filter(isPublished);
+
+const featured = published.filter((p) => p.data.featured);
+const standard = published.filter((p) => !p.data.featured);
+
+// Sort by activityAt (most recent first), falling back to startedAt
+function sortProjects(
+  a: (typeof published)[number],
+  b: (typeof published)[number]
+) {
+  const aDate = a.data.activityAt ?? a.data.startedAt ?? new Date(0);
+  const bDate = b.data.activityAt ?? b.data.startedAt ?? new Date(0);
+  return bDate.getTime() - aDate.getTime();
+}
+
+featured.sort(sortProjects);
+standard.sort(sortProjects);
 ---
 
-<BaseLayout title="Projects">
-  <main>
-    <h1>Projects</h1>
-    <p>Projects page — stub.</p>
-  </main>
+<BaseLayout
+  title="Projects"
+  description="A curated collection of projects — active, done, paused, and archived."
+>
+  {
+    featured.length > 0 && (
+      <section class="mb-12">
+        <h2 class="mb-6 text-lg font-medium text-text">Featured</h2>
+        <div class="grid gap-6 sm:grid-cols-2">
+          {featured.map((project) => (
+            <ProjectCard project={project} />
+          ))}
+        </div>
+      </section>
+    )
+  }
+
+  {
+    standard.length > 0 && (
+      <section>
+        <h2 class="mb-6 text-lg font-medium text-text">
+          {featured.length > 0 ? "All Projects" : "Projects"}
+        </h2>
+        <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {standard.map((project) => (
+            <ProjectCard project={project} />
+          ))}
+        </div>
+      </section>
+    )
+  }
 </BaseLayout>

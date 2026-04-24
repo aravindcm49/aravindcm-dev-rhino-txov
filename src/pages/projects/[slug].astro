@@ -1,0 +1,150 @@
+---
+import { getCollection, render } from "astro:content";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import {
+  isPublished,
+  statusBadgeClass,
+  getProjectLinks,
+  getCoverImage,
+} from "../../lib/projects";
+
+export async function getStaticPaths() {
+  const projects = await getCollection("projects");
+
+  return projects.filter(isPublished).map((entry) => {
+    const slug = entry.data.slug ?? entry.id;
+    return {
+      params: { slug },
+      props: { entry },
+    };
+  });
+}
+
+const { entry } = Astro.props;
+const { data } = entry;
+const slug = data.slug ?? entry.id;
+
+const links = getProjectLinks(data.links);
+const coverImage = getCoverImage(data.images);
+
+// Check if the project has MDX content (non-empty body)
+const hasBody = entry.body && entry.body.trim().length > 0;
+const { Content } = hasBody ? await render(entry) : { Content: null };
+
+const canonicalPath = `/projects/${slug}`;
+const startedDate = data.startedAt?.toISOString().split("T")[0];
+const completedDate = data.completedAt?.toISOString().split("T")[0];
+---
+
+<BaseLayout
+  title={data.title}
+  description={data.summary}
+  canonical={canonicalPath}
+  type="article"
+>
+  <article class="mx-auto max-w-[720px]">
+    <header class="mb-8">
+      <div class="flex items-start justify-between gap-3">
+        <h1 class="text-2xl font-semibold text-text">{data.title}</h1>
+        <span class={statusBadgeClass(data.status)}>{data.status}</span>
+      </div>
+
+      <p class="mt-3 text-base text-muted">{data.summary}</p>
+
+      {
+        (startedDate || completedDate) && (
+          <div class="mt-2 font-mono text-xs text-muted">
+            {startedDate && <span>Started {startedDate}</span>}
+            {startedDate && completedDate && <span> · </span>}
+            {completedDate && <span>Completed {completedDate}</span>}
+          </div>
+        )
+      }
+
+      {
+        data.topics.length > 0 && (
+          <div class="mt-3 flex flex-wrap gap-1.5">
+            {data.topics.map((topic) => (
+              <span class="rounded-full bg-surface px-2.5 py-1 text-xs text-muted">
+                #{topic}
+              </span>
+            ))}
+          </div>
+        )
+      }
+    </header>
+
+    {
+      coverImage && (
+        <div class="mb-8 overflow-hidden rounded-lg">
+          <img
+            src={coverImage.src}
+            alt={coverImage.alt}
+            class="w-full"
+            loading="lazy"
+          />
+        </div>
+      )
+    }
+
+    {
+      data.commentary && (
+        <div class="mb-8 border-l-2 border-accent pl-4">
+          <p class="text-lg leading-relaxed text-text">{data.commentary}</p>
+        </div>
+      )
+    }
+
+    {
+      links.length > 0 && (
+        <div class="mb-8 rounded-lg bg-surface p-4">
+          <p class="font-mono text-xs text-muted">Links</p>
+          <ul class="mt-2 flex flex-wrap gap-4 text-sm">
+            {links.map((link) => (
+              <li>
+                <a
+                  href={link.href}
+                  class="text-text underline decoration-border underline-offset-2 hover:text-accent hover:decoration-accent transition-colors"
+                  rel="noopener"
+                  target="_blank"
+                >
+                  {link.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )
+    }
+
+    {
+      data.images && data.images.length > 0 && (
+        <div class="mb-8 grid gap-4 sm:grid-cols-2">
+          {data.images
+            .filter((img) => img.kind !== "cover")
+            .map((img) => (
+              <figure>
+                <img
+                  src={img.src}
+                  alt={img.alt}
+                  class="rounded-lg"
+                  loading="lazy"
+                />
+                <figcaption class="mt-1 text-center text-xs text-muted">
+                  {img.alt}
+                </figcaption>
+              </figure>
+            ))}
+        </div>
+      )
+    }
+
+    {
+      Content && (
+        <div class="prose prose-neutral max-w-none dark:prose-invert">
+          <Content />
+        </div>
+      )
+    }
+  </article>
+</BaseLayout>
