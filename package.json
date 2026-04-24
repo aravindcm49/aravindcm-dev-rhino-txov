@@ -10,17 +10,21 @@
     "preview": "astro preview",
     "astro": "astro",
     "typecheck": "astro check",
-    "test": "vitest run"
+    "test": "vitest run",
+    "sandcastle": "npx tsx .sandcastle/main.ts"
   },
   "dependencies": {
+    "@ai-hero/sandcastle": "^0.5.1",
     "@astrojs/mdx": "^5.0.4",
     "@astrojs/react": "^5.0.4",
     "@astrojs/vercel": "^10.0.5",
     "@fontsource/geist-mono": "^5.2.7",
     "@fontsource/inter": "^5.2.8",
+    "@neondatabase/serverless": "^1.1.0",
     "@tailwindcss/vite": "^4.2.4",
     "@vercel/analytics": "^2.0.1",
     "astro": "^6.1.9",
+    "drizzle-orm": "^0.45.2",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "tailwindcss": "^4.2.4"
@@ -30,6 +34,7 @@
     "@types/node": "^22.10.2",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
+    "drizzle-kit": "^0.31.10",
     "typescript": "^5.7.3",
     "vitest": "^4.1.5"
   }
