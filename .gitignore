@@ -10,6 +10,7 @@ pnpm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 coverage
+drizzle
 
 # Agent workspace artifacts (not project code)
 .agents
