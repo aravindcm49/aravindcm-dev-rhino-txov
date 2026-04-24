@@ -161,7 +161,7 @@ export function mergeFeedItems(
         topics: normalized.topics,
         people: normalized.people,
         source: normalized.source,
-        publishedAt: normalized.publishedAt.toISOString(),
+    publishedAt: new Date(normalized.publishedAt).toISOString(),
         hasPage: normalized.hasPage,
         draft: normalized.draft,
         featured: normalized.featured,

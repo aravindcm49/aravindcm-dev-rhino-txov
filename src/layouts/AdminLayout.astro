@@ -6,6 +6,8 @@ import "@fontsource/inter/700.css";
 import "@fontsource/geist-mono/400.css";
 import "@fontsource/geist-mono/500.css";
 import "../styles/global.css";
+import { themeInitScript } from "../lib/theme";
+import ThemeToggle from "../components/ThemeToggle";
 
 interface Props {
   title: string;
@@ -27,13 +29,14 @@ const navItems = [
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex, nofollow" />
+    <script is:inline set:html={themeInitScript} />
     <title>{title} — Admin</title>
   </head>
   <body class="min-h-screen bg-neutral-50 text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100">
     <header class="border-b border-neutral-200 dark:border-neutral-800">
       <div class="mx-auto max-w-[1140px] px-6 py-4 flex items-center justify-between">
         <a href="/admin/publish" class="font-semibold text-lg">Admin</a>
-        <nav class="flex gap-6">
+        <nav class="flex gap-6 items-center">
           {navItems.map((item) => (
             <a
               href={item.href}
@@ -47,6 +50,7 @@ const navItems = [
               {item.label}
             </a>
           ))}
+          <ThemeToggle client:load />
         </nav>
       </div>
     </header>

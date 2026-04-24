@@ -134,6 +134,34 @@ export default function PublishPage() {
       if (data.kind === "tweet") {
         setTitle(data.authorName ? `Tweet by ${data.authorName}` : "Tweet");
         setSummary("");
+        // Auto-extract tweet author handle
+        const handle = data.authorUrl?.split("/").pop() ?? "";
+        if (handle) {
+          setPeople(handle);
+          // Auto-create person if they don't exist
+          try {
+            const personRes = await fetch(`/api/people?id=${encodeURIComponent(handle)}`);
+            if (personRes.ok) {
+              const existing = await personRes.json();
+              if (!existing || existing.length === 0) {
+                await fetch("/api/people", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    id: handle,
+                    name: data.authorName ?? handle,
+                    handle: `@${handle}`,
+                    summary: "A mysterious human who tweets things worth saving.",
+                    whyIFollow: "They said something smart once. Probably.",
+                    topics: [],
+                    links: { twitter: data.authorUrl },
+                    featured: false,
+                  }),
+                });
+              }
+            }
+          } catch { /* ignore */ }
+        }
       } else if (data.kind === "youtube") {
         setTitle(data.title ?? "");
         setSummary(data.description ?? "");

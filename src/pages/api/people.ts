@@ -2,8 +2,27 @@ export const prerender = false;
 
 import type { APIRoute } from "astro";
 import { requireDraftMode } from "~/lib/draft-auth";
-import { createPerson, updatePerson, deletePerson } from "~/lib/db/people";
+import { createPerson, updatePerson, deletePerson, getPersonById } from "~/lib/db/people";
 import { db } from "~/lib/db/index";
+
+export const GET: APIRoute = async ({ url, cookies }) => {
+  const guard = requireDraftMode(cookies);
+  if (guard) return guard;
+
+  const id = url.searchParams.get("id");
+  if (!id) {
+    return new Response(JSON.stringify({ error: "Missing 'id'" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  const person = await getPersonById(db, id);
+  return new Response(JSON.stringify(person ?? null), {
+    status: 200,
+    headers: { "Content-Type": "application/json" },
+  });
+};
 
 export const POST: APIRoute = async ({ request, cookies }) => {
   const guard = requireDraftMode(cookies);

@@ -11,6 +11,10 @@ export const POST: APIRoute = async ({ request, cookies }) => {
 
   try {
     const body = await request.json();
+    // Ensure date fields are Date objects
+    if (body.publishedAt && typeof body.publishedAt === "string") {
+      body.publishedAt = new Date(body.publishedAt);
+    }
     const item = await createFeedItem(db, body);
     return new Response(JSON.stringify(item), {
       status: 201,
