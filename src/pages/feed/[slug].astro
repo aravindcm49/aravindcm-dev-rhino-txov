@@ -1,0 +1,117 @@
+---
+import { getCollection, render } from "astro:content";
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { isPageable, prepareFeedPage } from "../../lib/feedDetail";
+
+export async function getStaticPaths() {
+  const [allFeed, allPeople] = await Promise.all([
+    getCollection("feed"),
+    getCollection("people"),
+  ]);
+
+  const people = allPeople.map((p) => ({ id: p.id, name: p.data.name }));
+
+  return allFeed.filter(isPageable).map((entry) => {
+    const page = prepareFeedPage(entry, people);
+    return {
+      params: { slug: page.slug },
+      props: { entry, page },
+    };
+  });
+}
+
+const { entry, page } = Astro.props;
+const { Content } = await render(entry);
+
+const canonicalPath = `/feed/${page.slug}`;
+const publishedDate = page.publishedAt.toISOString().split("T")[0];
+const updatedDate = page.updatedAt?.toISOString().split("T")[0];
+---
+
+<BaseLayout
+  title={page.title}
+  description={page.summary}
+  canonical={canonicalPath}
+  type="article"
+>
+  <article class="mx-auto max-w-[720px]">
+    <!-- Header -->
+    <header class="mb-8">
+      <div class="flex items-baseline gap-3">
+        <h1 class="text-2xl font-semibold text-text">{page.title}</h1>
+        <span class="shrink-0 font-mono text-xs uppercase tracking-wide text-muted">
+          {page.type}
+        </span>
+      </div>
+
+      <p class="mt-3 text-base text-muted">{page.summary}</p>
+
+      <time
+        datetime={publishedDate}
+        class="mt-2 block font-mono text-xs text-muted"
+      >
+        {publishedDate}
+        {updatedDate && ` · updated ${updatedDate}`}
+      </time>
+    </header>
+
+    <!-- Commentary (primary content) -->
+    {
+      page.commentary && (
+        <div class="mb-8 border-l-2 border-accent pl-4">
+          <p class="text-lg leading-relaxed text-text">{page.commentary}</p>
+        </div>
+      )
+    }
+
+    <!-- Source block -->
+    {
+      page.source && (
+        <div class="mb-8 rounded-lg bg-surface p-4">
+          <p class="font-mono text-xs text-muted">Source</p>
+          {page.source.href ? (
+            <a
+              href={page.source.href}
+              class="mt-1 block text-sm font-medium text-text underline decoration-border underline-offset-2 hover:text-accent hover:decoration-accent transition-colors"
+              rel="noopener"
+              target="_blank"
+            >
+              {page.source.label}
+            </a>
+          ) : (
+            <p class="mt-1 text-sm font-medium text-text">{page.source.label}</p>
+          )}
+        </div>
+      )
+    }
+
+    <!-- People and topics -->
+    {
+      (page.people.length > 0 || page.topics.length > 0) && (
+        <div class="mb-8 flex flex-wrap gap-2 text-xs">
+          {page.people.map((p) => (
+            <a
+              href={`/feed?person=${p.id}`}
+              class="rounded-full border border-border px-2.5 py-1 text-muted hover:text-text hover:border-accent transition-colors"
+            >
+              {p.name}
+            </a>
+          ))}
+          {page.topics.map((topic) => (
+            <a
+              href={`/feed?topic=${topic}`}
+              class="rounded-full bg-surface px-2.5 py-1 text-muted hover:text-text transition-colors"
+            >
+              #{topic}
+            </a>
+          ))}
+        </div>
+      )
+    }
+
+    <!-- MDX body -->
+    <div class="prose prose-neutral max-w-none dark:prose-invert">
+      <Content />
+    </div>
+  </article>
+</BaseLayout>
