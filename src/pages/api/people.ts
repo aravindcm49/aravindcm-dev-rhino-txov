@@ -1,3 +1,5 @@
+export const prerender = false;
+
 import type { APIRoute } from "astro";
 import { requireDraftMode } from "~/lib/draft-auth";
 import { createPerson, updatePerson, deletePerson } from "~/lib/db/people";

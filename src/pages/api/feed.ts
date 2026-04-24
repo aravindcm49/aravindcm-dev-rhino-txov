@@ -1,3 +1,5 @@
+export const prerender = false;
+
 import type { APIRoute } from "astro";
 import { requireDraftMode } from "~/lib/draft-auth";
 import { createFeedItem, updateFeedItem, deleteFeedItem } from "~/lib/db/feed-items";

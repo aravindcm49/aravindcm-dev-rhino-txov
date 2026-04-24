@@ -1,3 +1,5 @@
+export const prerender = false;
+
 import type { APIRoute } from "astro";
 import { isValidDraftSecret, setDraftCookie } from "~/lib/draft-auth";
 
