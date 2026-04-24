@@ -12,6 +12,7 @@ import Footer from "../components/Footer.astro";
 import SEO from "../components/SEO.astro";
 import { themeInitScript } from "../lib/theme";
 import { site } from "../data/site";
+import Analytics from "@vercel/analytics/astro";
 
 interface Props {
   title?: string;
@@ -47,5 +48,6 @@ const { title, description, canonical, ogImage, type } = Astro.props;
       <slot />
     </main>
     <Footer />
+    <Analytics />
   </body>
 </html>
