@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   filterFeed,
   type FeedFilterParams,
@@ -354,6 +354,41 @@ function RadioRow({
   );
 }
 
+// Lazy twitter embed hook
+let widgetsPromise: Promise<void> | null = null;
+function loadWidgets(): Promise<void> {
+  if (widgetsPromise) return widgetsPromise;
+  widgetsPromise = new Promise((resolve) => {
+    const script = document.createElement("script");
+    script.src = "https://platform.twitter.com/widgets.js";
+    script.async = true;
+    script.onload = () => resolve();
+    document.head.appendChild(script);
+  });
+  return widgetsPromise;
+}
+
+function useTweetEmbed(tweetUrl: string | undefined) {
+  const [showEmbed, setShowEmbed] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const toggleEmbed = useCallback(async () => {
+    if (showEmbed) {
+      setShowEmbed(false);
+      return;
+    }
+    setShowEmbed(true);
+    await loadWidgets();
+    // widgets.js auto-hydrates blockquotes on load, but we need to
+    // trigger it for dynamically inserted content
+    if (window.twttr?.widgets?.load && containerRef.current) {
+      window.twttr.widgets.load(containerRef.current);
+    }
+  }, [showEmbed, tweetUrl]);
+
+  return { showEmbed, toggleEmbed, containerRef };
+}
+
 function FilteredCard({
   entry,
   people,
@@ -364,6 +399,10 @@ function FilteredCard({
   const href = entry.hasPage ? `/feed/${entry.id}` : undefined;
   const srcLabel = sourceLabel(entry);
   const srcHref = sourceHref(entry);
+  const isTweet = entry.type === "tweet" && entry.source?.kind === "tweet";
+  const tweetUrl = isTweet && entry.source ? entry.source.url : undefined;
+  const { showEmbed, toggleEmbed, containerRef } = useTweetEmbed(tweetUrl);
+
   const Wrapper = href ? "a" : "div";
   const wrapperProps = href
     ? {
@@ -409,6 +448,29 @@ function FilteredCard({
               <span>{srcLabel}</span>
             )}
           </p>
+        )}
+
+        {isTweet && tweetUrl && (
+          <div className="mt-3">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                toggleEmbed();
+              }}
+              className="text-xs font-mono text-muted underline decoration-border underline-offset-2 hover:text-text hover:decoration-accent transition-colors"
+            >
+              {showEmbed ? "Hide embed" : "Show embed"}
+            </button>
+            {showEmbed && (
+              <div ref={containerRef} className="mt-3">
+                <blockquote className="twitter-tweet">
+                  <a href={tweetUrl}></a>
+                </blockquote>
+              </div>
+            )}
+          </div>
         )}
 
         {(people.length > 0 || entry.topics.length > 0) && (
