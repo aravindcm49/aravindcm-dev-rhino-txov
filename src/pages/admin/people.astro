@@ -1,9 +1,29 @@
 ---
 export const prerender = false;
 import AdminLayout from "~/layouts/AdminLayout.astro";
+import PeopleAdmin from "~/components/PeopleAdmin";
+import { getAllPeople } from "~/lib/db/people";
+import { getSuggestedHandles } from "~/lib/db/suggested-handles";
+import { db } from "~/lib/db/index";
+
+const [allPeople, suggestedHandles] = await Promise.all([
+  getAllPeople(db),
+  getSuggestedHandles(db),
+]);
+
+const serializedPeople = allPeople.map((p) => ({
+  id: p.id,
+  name: p.name,
+  handle: p.handle,
+  summary: p.summary,
+  whyIFollow: p.whyIFollow,
+  avatarUrl: p.avatarUrl,
+  topics: p.topics ?? [],
+  links: (p.links ?? {}) as Record<string, string>,
+  featured: p.featured,
+}));
 ---
 
 <AdminLayout title="People" active="people">
-  <h1 class="text-2xl font-semibold mb-4">People</h1>
-  <p class="text-neutral-500">People management — coming soon.</p>
+  <PeopleAdmin client:load initialPeople={serializedPeople} suggestedHandles={suggestedHandles} />
 </AdminLayout>
