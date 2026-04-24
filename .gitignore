@@ -18,3 +18,4 @@ drizzle
 skills
 skills-lock.json
 
+.env*.local
