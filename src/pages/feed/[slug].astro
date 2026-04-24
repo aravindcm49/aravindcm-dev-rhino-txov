@@ -1,95 +1,125 @@
 ---
-import { getCollection, render } from "astro:content";
+export const prerender = false;
+
+import { getEntry, render } from "astro:content";
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { isPageable, prepareFeedPage } from "../../lib/feedDetail";
+import { getFeedItemBySlug } from "../../lib/db/feed-items";
+import { getAllPeople as getAllDbPeople } from "../../lib/db/people";
+import { normalizeDbItem } from "../../lib/db-feed";
+import { renderMarkdown } from "../../lib/markdown";
+import { describeSource } from "../../lib/feed";
+import { db } from "../../lib/db/index";
 
-export async function getStaticPaths() {
-  const [allFeed, allPeople] = await Promise.all([
-    getCollection("feed"),
-    getCollection("people"),
-  ]);
+const { slug } = Astro.params;
 
-  const people = allPeople.map((p) => ({ id: p.id, name: p.data.name }));
+// Try MDX first
+const mdxEntry = await getEntry("feed", slug ?? "");
+const isMdx = mdxEntry !== undefined && isPageable(mdxEntry);
 
-  return allFeed.filter(isPageable).map((entry) => {
-    const page = prepareFeedPage(entry, people);
-    return {
-      params: { slug: page.slug },
-      props: { entry, page },
-    };
-  });
+let mdxPage: ReturnType<typeof prepareFeedPage> | null = null;
+let mdxContent: Awaited<ReturnType<typeof render>>["Content"] | null = null;
+let dbHtml = "";
+let dbTitle = "";
+let dbSummary = "";
+let dbCommentary: string | undefined;
+let dbType = "";
+let dbPublishedDate = "";
+let dbUpdatedDate: string | undefined;
+let dbCanonical = "";
+let dbSource: ReturnType<typeof describeSource> = undefined;
+let dbResolvedPeople: { id: string; name: string }[] = [];
+let dbTopics: string[] = [];
+
+if (isMdx && mdxEntry) {
+  const allPeople = await getAllDbPeople(db).catch(() => []);
+  const peoplePool = allPeople.map((p) => ({ id: p.id, name: p.name }));
+  mdxPage = prepareFeedPage(mdxEntry, peoplePool);
+  const rendered = await render(mdxEntry);
+  mdxContent = rendered.Content;
+} else {
+  // Try DB
+  const dbRow = await getFeedItemBySlug(db, slug ?? "").catch(() => null);
+
+  if (dbRow && dbRow.hasPage && !dbRow.draft) {
+    const normalized = normalizeDbItem(dbRow);
+    dbHtml = dbRow.content ? renderMarkdown(dbRow.content) : "";
+    const allPeople = await getAllDbPeople(db).catch(() => []);
+    const peoplePool = allPeople.map((p) => ({ id: p.id, name: p.name }));
+
+    dbResolvedPeople = (dbRow.people ?? [])
+      .map((pid: string) => peoplePool.find((p) => p.id === pid))
+      .filter((p): p is { id: string; name: string } => p !== undefined);
+
+    dbTitle = normalized.title;
+    dbSummary = normalized.summary;
+    dbCommentary = normalized.commentary;
+    dbType = normalized.type;
+    dbPublishedDate = normalized.publishedAt.toISOString().split("T")[0];
+    dbUpdatedDate = normalized.updatedAt?.toISOString().split("T")[0];
+    dbCanonical = `/feed/${dbRow.slug}`;
+    dbSource = describeSource(normalized.source);
+    dbTopics = normalized.topics ?? [];
+  } else {
+    return new Response("Not found", { status: 404 });
+  }
 }
 
-const { entry, page } = Astro.props;
-const { Content } = await render(entry);
-
-const canonicalPath = `/feed/${page.slug}`;
-const publishedDate = page.publishedAt.toISOString().split("T")[0];
-const updatedDate = page.updatedAt?.toISOString().split("T")[0];
+const showMdx = isMdx && mdxPage && mdxContent;
 ---
 
-<BaseLayout
-  title={page.title}
-  description={page.summary}
-  canonical={canonicalPath}
-  type="article"
->
-  <article class="mx-auto max-w-[720px]">
-    <!-- Header -->
-    <header class="mb-8">
-      <div class="flex items-baseline gap-3">
-        <h1 class="text-2xl font-semibold text-text">{page.title}</h1>
-        <span class="shrink-0 font-mono text-xs uppercase tracking-wide text-muted">
-          {page.type}
-        </span>
-      </div>
-
-      <p class="mt-3 text-base text-muted">{page.summary}</p>
-
-      <time
-        datetime={publishedDate}
-        class="mt-2 block font-mono text-xs text-muted"
-      >
-        {publishedDate}
-        {updatedDate && ` · updated ${updatedDate}`}
-      </time>
-    </header>
-
-    <!-- Commentary (primary content) -->
-    {
-      page.commentary && (
-        <div class="mb-8 border-l-2 border-accent pl-4">
-          <p class="text-lg leading-relaxed text-text">{page.commentary}</p>
+{showMdx && mdxPage && mdxContent && (
+  <BaseLayout
+    title={mdxPage.title}
+    description={mdxPage.summary}
+    canonical={`/feed/${mdxPage.slug}`}
+    type="article"
+  >
+    <article class="mx-auto max-w-[720px]">
+      <header class="mb-8">
+        <div class="flex items-baseline gap-3">
+          <h1 class="text-2xl font-semibold text-text">{mdxPage.title}</h1>
+          <span class="shrink-0 font-mono text-xs uppercase tracking-wide text-muted">
+            {mdxPage.type}
+          </span>
         </div>
-      )
-    }
+        <p class="mt-3 text-base text-muted">{mdxPage.summary}</p>
+        <time
+          datetime={mdxPage.publishedAt.toISOString().split("T")[0]}
+          class="mt-2 block font-mono text-xs text-muted"
+        >
+          {mdxPage.publishedAt.toISOString().split("T")[0]}
+          {mdxPage.updatedAt && ` · updated ${mdxPage.updatedAt.toISOString().split("T")[0]}`}
+        </time>
+      </header>
 
-    <!-- Source block -->
-    {
-      page.source && (
+      {mdxPage.commentary && (
+        <div class="mb-8 border-l-2 border-accent pl-4">
+          <p class="text-lg leading-relaxed text-text">{mdxPage.commentary}</p>
+        </div>
+      )}
+
+      {mdxPage.source && (
         <div class="mb-8 rounded-lg bg-surface p-4">
           <p class="font-mono text-xs text-muted">Source</p>
-          {page.source.href ? (
+          {mdxPage.source.href ? (
             <a
-              href={page.source.href}
+              href={mdxPage.source.href}
               class="mt-1 block text-sm font-medium text-text underline decoration-border underline-offset-2 hover:text-accent hover:decoration-accent transition-colors"
               rel="noopener"
               target="_blank"
             >
-              {page.source.label}
+              {mdxPage.source.label}
             </a>
           ) : (
-            <p class="mt-1 text-sm font-medium text-text">{page.source.label}</p>
+            <p class="mt-1 text-sm font-medium text-text">{mdxPage.source.label}</p>
           )}
         </div>
-      )
-    }
+      )}
 
-    <!-- People and topics -->
-    {
-      (page.people.length > 0 || page.topics.length > 0) && (
+      {(mdxPage.people.length > 0 || mdxPage.topics.length > 0) && (
         <div class="mb-8 flex flex-wrap gap-2 text-xs">
-          {page.people.map((p) => (
+          {mdxPage.people.map((p) => (
             <a
               href={`/feed?person=${p.id}`}
               class="rounded-full border border-border px-2.5 py-1 text-muted hover:text-text hover:border-accent transition-colors"
@@ -97,7 +127,7 @@ const updatedDate = page.updatedAt?.toISOString().split("T")[0];
               {p.name}
             </a>
           ))}
-          {page.topics.map((topic) => (
+          {mdxPage.topics.map((topic: string) => (
             <a
               href={`/feed?topic=${topic}`}
               class="rounded-full bg-surface px-2.5 py-1 text-muted hover:text-text transition-colors"
@@ -106,12 +136,88 @@ const updatedDate = page.updatedAt?.toISOString().split("T")[0];
             </a>
           ))}
         </div>
-      )
-    }
+      )}
 
-    <!-- MDX body -->
-    <div class="prose prose-neutral max-w-none dark:prose-invert">
-      <Content />
-    </div>
-  </article>
-</BaseLayout>
+      <div class="prose prose-neutral max-w-none dark:prose-invert">
+        <mdxContent />
+      </div>
+    </article>
+  </BaseLayout>
+)}
+
+{!showMdx && (
+  <BaseLayout
+    title={dbTitle}
+    description={dbSummary}
+    canonical={dbCanonical}
+    type="article"
+  >
+    <article class="mx-auto max-w-[720px]">
+      <header class="mb-8">
+        <div class="flex items-baseline gap-3">
+          <h1 class="text-2xl font-semibold text-text">{dbTitle}</h1>
+          <span class="shrink-0 font-mono text-xs uppercase tracking-wide text-muted">
+            {dbType}
+          </span>
+        </div>
+        <p class="mt-3 text-base text-muted">{dbSummary}</p>
+        <time
+          datetime={dbPublishedDate}
+          class="mt-2 block font-mono text-xs text-muted"
+        >
+          {dbPublishedDate}
+          {dbUpdatedDate && ` · updated ${dbUpdatedDate}`}
+        </time>
+      </header>
+
+      {dbCommentary && (
+        <div class="mb-8 border-l-2 border-accent pl-4">
+          <p class="text-lg leading-relaxed text-text">{dbCommentary}</p>
+        </div>
+      )}
+
+      {dbSource && (
+        <div class="mb-8 rounded-lg bg-surface p-4">
+          <p class="font-mono text-xs text-muted">Source</p>
+          {dbSource.href ? (
+            <a
+              href={dbSource.href}
+              class="mt-1 block text-sm font-medium text-text underline decoration-border underline-offset-2 hover:text-accent hover:decoration-accent transition-colors"
+              rel="noopener"
+              target="_blank"
+            >
+              {dbSource.label}
+            </a>
+          ) : (
+            <p class="mt-1 text-sm font-medium text-text">{dbSource.label}</p>
+          )}
+        </div>
+      )}
+
+      {(dbResolvedPeople.length > 0 || dbTopics.length > 0) && (
+        <div class="mb-8 flex flex-wrap gap-2 text-xs">
+          {dbResolvedPeople.map((p) => (
+            <a
+              href={`/feed?person=${p.id}`}
+              class="rounded-full border border-border px-2.5 py-1 text-muted hover:text-text hover:border-accent transition-colors"
+            >
+              {p.name}
+            </a>
+          ))}
+          {dbTopics.map((topic: string) => (
+            <a
+              href={`/feed?topic=${topic}`}
+              class="rounded-full bg-surface px-2.5 py-1 text-muted hover:text-text transition-colors"
+            >
+              #{topic}
+            </a>
+          ))}
+        </div>
+      )}
+
+      {dbHtml && (
+        <div class="prose prose-neutral max-w-none dark:prose-invert" set:html={dbHtml} />
+      )}
+    </article>
+  </BaseLayout>
+)}

@@ -1,33 +1,23 @@
 ---
+export const prerender = false;
+
 import { getCollection } from "astro:content";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import FeedFilter from "../components/FeedFilter";
-import type { FeedItemLike } from "../lib/feedFilter";
+import { mergeFeedItems } from "../lib/db-feed";
+import { db } from "../lib/db/index";
+import { getPublishedFeedItems } from "../lib/db/feed-items";
+import { getAllPeople } from "../lib/db/people";
 
-const [allFeed, allPeople] = await Promise.all([
+const [mdxFeed, dbItems, dbPeople] = await Promise.all([
   getCollection("feed"),
-  getCollection("people"),
+  getPublishedFeedItems(db).catch(() => []),
+  getAllPeople(db).catch(() => []),
 ]);
 
-// Serialize to a JSON-safe shape. Dates become ISO strings because React
-// islands receive props through JSON and Date objects don't survive that.
-const items: FeedItemLike[] = allFeed
-  .filter((e) => !e.data.draft)
-  .map((e) => ({
-    id: e.data.slug ?? e.id,
-    title: e.data.title,
-    summary: e.data.summary,
-    commentary: e.data.commentary,
-    type: e.data.type,
-    topics: e.data.topics,
-    people: e.data.people,
-    source: e.data.source,
-    publishedAt: e.data.publishedAt.toISOString(),
-    activityAt: e.data.activityAt?.toISOString(),
-    hasPage: e.data.hasPage,
-  }));
+const items = mergeFeedItems(mdxFeed, dbItems);
 
-const people = allPeople.map((p) => ({ id: p.id, name: p.data.name }));
+const people = dbPeople.map((p) => ({ id: p.id, name: p.name }));
 ---
 
 <BaseLayout

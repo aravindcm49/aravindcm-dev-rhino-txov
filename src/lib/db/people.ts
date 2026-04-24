@@ -2,7 +2,7 @@ import { eq, desc } from "drizzle-orm";
 import type { NeonHttpDatabase } from "drizzle-orm/neon-http";
 import { people, type PersonRow, type NewPersonRow } from "./schema";
 
-export type Db = NeonHttpDatabase<Record<string, never>>;
+export type Db = NeonHttpDatabase<Record<string, unknown>>;
 
 // --- Read ---
 
